@@ -1,107 +1,163 @@
-# QRKot Spreadsheets — Отчёты на Яндекс Диске 🐱
+<div align="center">
 
-## Описание
+# 🐈 QRKot
 
-Расширение приложения **QRKot** — благотворительного фонда поддержки котиков.
-Добавлена функция формирования Excel-отчётов и отправки их на Яндекс Диск.
+**Асинхронный REST API благотворительного фонда: целевые сборы, автоматическое распределение пожертвований и Excel-отчёты на Яндекс Диске**
+
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.135-009688?logo=fastapi&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0_async-D71F00?logo=sqlalchemy&logoColor=white)
+![Pydantic](https://img.shields.io/badge/Pydantic-v2-E92063?logo=pydantic&logoColor=white)
+![Tests](https://img.shields.io/badge/pytest-87%2F87_passed-2ea44f?logo=pytest&logoColor=white)
+
+</div>
+
+## О проекте
+
+QRKot — бэкенд фонда, который собирает деньги на целевые проекты (корм, лечение, приюты для кошек).
+Администратор открывает проекты с нужной суммой, пользователи делают пожертвования, а сервис **сам распределяет деньги** по открытым проектам в порядке очереди и закрывает проект, как только сумма собрана.
+По закрытым проектам суперпользователь одной командой получает **Excel-отчёт на Яндекс Диске** с публичной ссылкой.
 
 ## Возможности
 
-- Создание и управление целевыми проектами сбора средств.
-- Пожертвования с автоматическим распределением по проектам.
-- Регистрация и авторизация пользователей (JWT).
-- Разграничение прав: анонимный / пользователь / суперпользователь.
-- Генерация Excel-отчёта по закрытым проектам с сортировкой по скорости сбора.
-- Автоматическая загрузка отчёта на Яндекс Диск с публичной ссылкой.
+- **Целевые проекты** — создание, изменение и удаление (только суперпользователь), просмотр — всем.
+- **Пожертвования** — авторизованный пользователь жертвует любую сумму и видит историю своих пожертвований.
+- **Автоматическое инвестирование (FIFO)** — новое пожертвование распределяется по самым старым открытым проектам; остаток переходит в следующий проект; новый проект сразу забирает свободные средства.
+- **Бизнес-правила на уровне API** — нельзя изменить закрытый проект, уменьшить требуемую сумму ниже уже собранной, удалить проект с внесёнными средствами или создать два проекта с одним именем.
+- **Регистрация и JWT-аутентификация** через FastAPI Users, роли: аноним / пользователь / суперпользователь.
+- **Отчёт в Excel** (xlsxwriter) по закрытым проектам, отсортированным по скорости сбора, с загрузкой и публикацией через REST API Яндекс Диска (httpx, асинхронно).
+- Строгая валидация входных данных (Pydantic v2, `extra='forbid'`), миграции схемы через Alembic, документация OpenAPI (Swagger / ReDoc).
 
-## Технологии
+## Стек
 
-| Стек | Версия |
-|------|--------|
-| Python | 3.10+ |
-| FastAPI | 0.135.1 |
-| FastAPI Users | 15.0.4 |
-| SQLAlchemy | 2.0 (async) |
-| Alembic | 1.18.4 |
-| Pydantic | 2.12 |
-| xlsxwriter | 3.2.9 |
-| httpx | 0.28.1 |
-| SQLite + aiosqlite | — |
+| Слой | Технологии |
+|---|---|
+| Язык | Python 3.12, asyncio |
+| Веб-фреймворк | FastAPI, Uvicorn |
+| Данные | SQLAlchemy 2.0 (async), Alembic, SQLite / aiosqlite (меняется на PostgreSQL через `DATABASE_URL`) |
+| Аутентификация | FastAPI Users, JWT (Bearer) |
+| Интеграции | Яндекс Диск REST API, httpx, xlsxwriter |
+| Качество | pytest, pytest-asyncio, freezegun, flake8 |
 
-## Установка и запуск
+## Что сделано
+
+- Спроектированы модели `CharityProject`, `Donation`, `User` и общий асинхронный CRUD-слой (`CRUDBase`) с наследниками под каждую сущность.
+- Реализован сервис распределения средств `invest()` — одна функция обслуживает оба направления: «проект ← пожертвования» и «пожертвование → проекты».
+- Логика отчёта вынесена в сервисный слой: формирование книги в памяти (`BytesIO`), форматирование длительности сбора, загрузка и публикация файла через асинхронный клиент Яндекс Диска.
+- **87 из 87 автотестов проходят**: аутентификация, CRUD проектов и пожертвований, сценарии распределения средств, клиент и настройки Яндекс Диска.
+
+## Структура
+
+```
+app/
+├── api/endpoints/   # роутеры: charity_project, donation, user, yandex_api
+├── core/            # настройки, подключение к БД, FastAPI Users, клиент Яндекс Диска
+├── crud/            # асинхронный CRUD-слой
+├── models/          # модели SQLAlchemy
+├── schemas/         # схемы Pydantic
+└── services/        # распределение средств, генерация отчёта
+alembic/             # миграции
+tests/               # pytest
+```
+
+## Запуск локально
+
+**Требования:** Python 3.10+ (проверено на 3.12), pip. Для отчёта — OAuth-токен Яндекс Диска.
 
 ```bash
-# 1. Клонировать репозиторий
 git clone https://github.com/JuliaDJ1/QRkot-spreadsheets.git
 cd QRkot-spreadsheets
 
-# 2. Создать виртуальное окружение
 python -m venv venv
-source venv/bin/activate
-
-# 3. Установить зависимости
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# 4. Создать .env файл
-echo "YANDEX_DISK_TOKEN=ваш_токен" > .env
-
-# 5. Применить миграции
+cp .env.example .env            # заполните SECRET и YANDEX_DISK_TOKEN
 alembic upgrade head
-
-# 6. Запустить сервер
 uvicorn app.main:app --reload
 ```
 
-После запуска:
-- Swagger UI: http://127.0.0.1:8000/docs
+Документация API: http://127.0.0.1:8000/docs (Swagger) и http://127.0.0.1:8000/redoc.
 
-## API
+### Переменные окружения
 
-### Авторизация (`/auth`)
+| Переменная | Назначение |
+|---|---|
+| `DATABASE_URL` | строка подключения SQLAlchemy, по умолчанию `sqlite+aiosqlite:///./qrkot.db` |
+| `SECRET` | секрет для подписи JWT |
+| `YANDEX_DISK_TOKEN` | OAuth-токен Яндекс Диска для выгрузки отчёта |
 
-| Метод | URL | Описание |
-|-------|-----|----------|
-| POST | /auth/register | Регистрация |
-| POST | /auth/jwt/login | Получить JWT-токен |
-| GET | /auth/users/me | Мой профиль |
-
-### Целевые проекты (`/charity_project`)
-
-| Метод | URL | Доступ |
-|-------|-----|--------|
-| GET | /charity_project/ | Все |
-| POST | /charity_project/ | Суперпользователь |
-| PATCH | /charity_project/{id} | Суперпользователь |
-| DELETE | /charity_project/{id} | Суперпользователь |
-
-### Пожертвования (`/donation`)
-
-| Метод | URL | Доступ |
-|-------|-----|--------|
-| GET | /donation/ | Суперпользователь |
-| POST | /donation/ | Авторизованный |
-| GET | /donation/my | Авторизованный |
-
-### Яндекс Диск (`/yandex`)
-
-| Метод | URL | Описание | Доступ |
-|-------|-----|----------|--------|
-| POST | /yandex/ | Создать Excel-отчёт | Суперпользователь |
-
-## Формат отчёта
-
-Excel-файл содержит:
-- Строка 1: заголовок с датой отчёта
-- Строка 2: заголовки колонок
-- Строки 3...N: закрытые проекты, отсортированные по скорости сбора
-- Последняя строка: итоговое количество проектов
-
-## Запуск тестов
+### Тесты
 
 ```bash
-python3 -m pytest
+pytest
 ```
+
+## Эндпоинты
+
+| Метод | URL | Доступ | Описание |
+|---|---|---|---|
+| POST | `/auth/register` | все | регистрация |
+| POST | `/auth/jwt/login` | все | получение JWT |
+| GET | `/charity_project/` | все | список проектов |
+| POST | `/charity_project/` | суперпользователь | создать проект |
+| PATCH | `/charity_project/{id}` | суперпользователь | изменить проект |
+| DELETE | `/charity_project/{id}` | суперпользователь | удалить проект без пожертвований |
+| POST | `/donation/` | пользователь | сделать пожертвование |
+| GET | `/donation/my` | пользователь | мои пожертвования |
+| GET | `/donation/` | суперпользователь | все пожертвования |
+| POST | `/yandex/` | суперпользователь | сформировать отчёт на Яндекс Диске |
+
+## Примеры запросов
+
+Получить токен:
+
+```bash
+curl -X POST http://127.0.0.1:8000/auth/jwt/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=user@example.com&password=strongpassword"
+```
+
+Создать проект (суперпользователь):
+
+```bash
+curl -X POST http://127.0.0.1:8000/charity_project/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Корм для приюта", "description": "Сухой корм на зиму для 40 кошек", "full_amount": 15000}'
+```
+
+Ответ:
+
+```json
+{
+  "name": "Корм для приюта",
+  "description": "Сухой корм на зиму для 40 кошек",
+  "full_amount": 15000,
+  "id": 1,
+  "invested_amount": 0,
+  "fully_invested": false,
+  "create_date": "2026-08-12T10:00:00",
+  "close_date": null
+}
+```
+
+Сделать пожертвование:
+
+```bash
+curl -X POST http://127.0.0.1:8000/donation/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"full_amount": 5000, "comment": "На корм"}'
+```
+
+## Связанные репозитории
+
+Проект развивался в три этапа:
+[cat-charity-1](https://github.com/JuliaDJ1/cat-charity-1) (базовый API и распределение средств) →
+[cat-charity-2](https://github.com/JuliaDJ1/cat-charity-2) (пользователи и JWT) →
+**QRkot-spreadsheets** (отчёты на Яндекс Диске, итоговая версия).
 
 ## Автор
 
-[JuliaDJ1](https://github.com/JuliaDJ1)
+**Вадим Гусейнов** — Python-разработчик (Backend) · [Telegram](https://t.me/eviliing)
