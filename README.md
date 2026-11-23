@@ -65,7 +65,7 @@ tests/               # pytest
 **Требования:** Python 3.10+ (проверено на 3.12), pip. Для отчёта — OAuth-токен Яндекс Диска.
 
 ```bash
-git clone https://github.com/JuliaDJ1/QRkot-spreadsheets.git
+git clone https://github.com/vadim-guseinov/QRkot-spreadsheets.git
 cd QRkot-spreadsheets
 
 python -m venv venv
@@ -154,8 +154,8 @@ curl -X POST http://127.0.0.1:8000/donation/ \
 ## Связанные репозитории
 
 Проект развивался в три этапа:
-[cat-charity-1](https://github.com/JuliaDJ1/cat-charity-1) (базовый API и распределение средств) →
-[cat-charity-2](https://github.com/JuliaDJ1/cat-charity-2) (пользователи и JWT) →
+[cat-charity-1](https://github.com/vadim-guseinov/cat-charity-1) (базовый API и распределение средств) →
+[cat-charity-2](https://github.com/vadim-guseinov/cat-charity-2) (пользователи и JWT) →
 **QRkot-spreadsheets** (отчёты на Яндекс Диске, итоговая версия).
 
 ## Автор
